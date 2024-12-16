@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <style>
+        .loading {
+            font-size: 20px;
+            color: #3c8dbc;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Admin Sidebar -->
+<nav class="w3-sidebar w3-gray w3-collapse w3-top w3-large w3-padding" style="z-index:3;width:300px;font-weight:bold;" id="mySidebar">
+    <br>
+    <a href="javascript:void(0)" onclick="w3_close()" class="w3-button w3-hide-large w3-display-topright" style="width:100%;color:white; font-size:22px">close &times;</a>
+    <div class="w3-container">
+        <h2>Admin Dashboard</h2>
+    </div>
+    <br>
+    <div class="w3-bar-block">
+        <button class="w3-btn w3-black" id="logoutButton">Logout</button>
+    </div>
+</nav>
+
+<!-- Admin Content -->
+<div class="w3-main" style="margin-left:340px; margin-right:10px;">
+    <div class="w3-container" style="margin-top:80px;">
+        <h1 class="w3-text-green">Manage Payments</h1>
+        <hr>
+        <div id="ordersContainer" class="loading">Loading orders...</div>
+    </div>
+</div>
+
+<script type="module">
+    // Ensure that the updateOrderStatus function is globally accessible
+    window.updateOrderStatus = updateOrderStatus;
+
+    import { getDatabase, ref, onValue, update, get } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyAicjO4bsXnfdF4l6sCmFvoRliiV6EC62I",
+        authDomain: "portfolioclient-7d2fa.firebaseapp.com",
+        databaseURL: "https://portfolioclient-7d2fa-default-rtdb.firebaseio.com",
+        projectId: "portfolioclient-7d2fa",
+        storageBucket: "portfolioclient-7d2fa.appspot.com",
+        messagingSenderId: "141801602453",
+        appId: "1:141801602453:web:91d3d6231987678dc78a9c"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    // Load and display orders
+    fetchOrders();
+
+    // Fetch and display orders
+    async function fetchOrders() {
+        const ordersRef = ref(database, 'orders');
+        onValue(ordersRef, async (snapshot) => {
+            const ordersData = snapshot.val();
+            if (ordersData) {
+                displayOrders(ordersData);
+            } else {
+                document.getElementById('ordersContainer').innerHTML = '<div>No orders found.</div>';
+            }
+        });
+    }
+
+    // Display orders in a table
+    async function displayOrders(ordersData) {
+        const ordersHTML = await generateOrdersHTML(ordersData);
+        document.getElementById('ordersContainer').innerHTML = ordersHTML;
+    }
+
+    // Generate HTML for orders
+    async function generateOrdersHTML(ordersData) {
+        let ordersHTML = `
+            <table class="w3-table w3-striped w3-bordered w3-hoverable">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Username</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        for (const orderId in ordersData) {
+            const order = ordersData[orderId];
+            const username = order.username || 'Unknown User';  // Directly get username from the order
+            ordersHTML += `
+                <tr>
+                    <td>${orderId}</td>
+                    <td>${username}</td>
+                    <td>₦${order.amount.toFixed(2)}</td>
+                    <td id="status-${orderId}">${order.paymentStatus}</td>
+                    <td>
+                        <button class="w3-button w3-blue" onclick="updateOrderStatus('${orderId}')">Verify</button>
+                    </td>
+                </tr>
+            `;
+        }
+        ordersHTML += `</tbody></table>`;
+        return ordersHTML;
+    }
+
+    // Update order payment status
+    async function updateOrderStatus(orderId) {
+        try {
+            console.log("Update Order Status triggered for Order ID:", orderId); // Debugging log
+
+            const orderRef = ref(database, `orders/${orderId}`);
+            const updatedStatus = 'Verified';
+
+            const orderSnapshot = await get(orderRef);
+            if (orderSnapshot.exists()) {
+                const order = orderSnapshot.val();
+                console.log("Current Order Data:", order); // Debugging log
+
+                if (order.paymentStatus !== updatedStatus) {
+                    await update(orderRef, {
+                        paymentStatus: updatedStatus,
+                        verifiedDate: new Date().toISOString()
+                    });
+                    document.getElementById(`status-${orderId}`).innerText = updatedStatus;
+                    alert('Order status updated to Verified.');
+                } else {
+                    alert('Order already verified.');
+                }
+            } else {
+                alert('Order not found.');
+            }
+        } catch (error) {
+            console.error('Error updating order status:', error);
+            alert('Error updating order status.');
+        }
+    }
+
+    // Logout (This is now just a placeholder since authentication is disabled)
+    document.getElementById('logoutButton').addEventListener('click', () => {
+        alert('You have logged out.');
+    });
+</script>
+
+</body>
+</html>
